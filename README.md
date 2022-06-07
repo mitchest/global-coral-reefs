@@ -1,6 +1,6 @@
 # global-coral-reefs
 Code and analysis for reproducing the data and statistics from:
-Lyons et al. (202x). High-resolution global maps of coral reefs
+Lyons et al. (202x). High-resolution global maps of coral reef habitat
 
 ## Note
 - The `.dbf` file is compressed, so uncompress it to use it
