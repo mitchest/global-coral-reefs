@@ -5,17 +5,20 @@ library(ggplot2)
 source("reef_functions.R")
 
 geo_full <- read.csv("global_geo_val_5m.csv", stringsAsFactors = F) %>%
-  select(class_num, classification, region)
+  select(class_num, classification, region) %>%
+  filter(region != 'bermuda', region != 'brazil')
 geo_full$class_num[geo_full$class_num != 2] <- 1
 geo_full$classification[geo_full$classification != 2] <- 1
 geo_full <- rbind(geo_full, data.frame(region = 'dummy', class_num = 1, classification = 2))
 table(geo_full$classification, geo_full$class_num)
 
 geo_cases <- read.csv("global_geo_val_5m.csv", stringsAsFactors = F) %>%
-  filter(class_num != 25, classification != 25, class_num != 2)
+  filter(class_num != 25, classification != 25, class_num != 2, classification !=2) %>%
+  filter(region != 'bermuda', region != 'brazil')
 
 benthic_cases <- read.csv("global_benthic_val_5m.csv", stringsAsFactors = F) %>%
-  filter(class_num != 16, class_num != 17)
+  filter(class_num != 16, class_num != 17) %>%
+  filter(region != 'bermuda', region != 'brazil')
 
 
 #########################################################

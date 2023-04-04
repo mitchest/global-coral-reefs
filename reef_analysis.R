@@ -3,6 +3,7 @@ library(dplyr)
 library(tidyr)
 library(purrr)
 library(ggplot2)
+library(ggtern)
 
 source("reef_functions.R")
 source("reef_error.R")
@@ -36,6 +37,7 @@ coral_grid_processed <- coral_grids %>%
   ungroup() %>%
   rowwise() %>%
   mutate(
+    extent_sum = sum_na(reef_exten),
     geo_sum = sum_na(c_across(starts_with("geo_"))),
     pageo_sum = sum_na(c_across(starts_with("pageo_"))),
     ben_sum = sum_na(c_across(starts_with("ben_"))),
@@ -46,7 +48,8 @@ coral_grid_processed <- coral_grids %>%
     coral_habitat = sum_na(c(ben_13, ben_15)),
     pacoral_realestate = sum_na(c(pageo_13, pageo_14, pageo_15, pageo_21, pageo_22, pageo_24, pageo_25)),
     pacoral_habitat = sum_na(c(paben_13, paben_15)),
-    flat_back = sum_na(c(geo_13, geo_14, geo_24))
+    flat_back = sum_na(c(geo_13, geo_14, geo_24)),
+    ben_entropy = shannon_entropy(c_across(starts_with("ben_")))
   ) %>%
   ungroup() %>%
   mutate(
@@ -63,7 +66,7 @@ coral_grid_processed <- coral_grids %>%
 
 # back to .dbf
 ###############
-# write.dbf(as.data.frame(coral_grid_processed), file = "global_5m_processed.dbf")
+#write.dbf(as.data.frame(coral_grid_processed), file = "global_5m_processed.dbf")
 ###############
 
 
@@ -78,6 +81,7 @@ coral_grid_analysis <- coral_grid_processed %>%
 
 ### total's statements
 # totals
+sum_na(coral_grid_analysis$extent_sum) / (1000*1000)
 sum_na(coral_grid_analysis$geo_sum) / (1000*1000)
 
 # increase in mapped areas vs. WCMC
@@ -116,7 +120,7 @@ geo_class_totals <- class_totals %>%
   left_join(geo_mults, by = "class") %>%
   mutate(surface_area = area * multiplier)
 
-sum(geo_class_totals$surface_area)
+sum_na(geo_class_totals$surface_area)
 
 
 # coral habitat (CA + RO)
@@ -131,8 +135,8 @@ c(
 plot(log(coral_realestate) ~ log(wcmc), data = coral_grid_analysis)
 # amount reef within distance to major land mass
 land_dist = 0.1
-1 - (coral_grid_analysis %>% filter(distance >= land_dist) %>% summarise(sum = sum_na(geo_sum)) / coral_grid_analysis %>% filter(distance < land_dist) %>% summarise(sum = sum_na(geo_sum)))
-1 - (coral_grid_analysis %>% filter(distance >= land_dist) %>% summarise(sum = sum_na(coral_habitat)) / coral_grid_analysis %>% filter(distance < land_dist) %>% summarise(sum = sum_na(coral_habitat)))
+100 * (coral_grid_analysis %>% filter(distance < land_dist) %>% summarise(sum = sum_na(geo_sum)) / coral_grid_analysis %>% summarise(sum = sum_na(geo_sum)))
+100 * (coral_grid_analysis %>% filter(distance < land_dist) %>% summarise(sum = sum_na(coral_habitat)) / coral_grid_analysis %>% summarise(sum = sum_na(coral_habitat)))
 # geomorphic based popultions
 round(c(sum(coral_grid_analysis$pop_slo), sum(coral_grid_analysis$pop_fl_ba), sum_na(coral_grid_analysis$pop_crest)) / 1000000000)
 # benthic based
@@ -169,7 +173,8 @@ ggplot(data = threat_plot_dat, aes(x = distance, y = coral_habitat)) +
 ### COUNTRY SUMMARIES
 coral_country_summary <- coral_grid_analysis %>%
   group_by(UNION) %>%
-  summarise(geo_sum = sum(geo_sum) / 1000000,
+  summarise(extent_sum = sum(extent_sum) / 1000000,
+            geo_sum = sum(geo_sum) / 1000000,
             ben_sum = sum(ben_sum) / 1000000,
             realestate_sum = sum(coral_realestate) / 1000000,
             coralhab_sum = sum(coral_habitat) / 1000000,
@@ -186,15 +191,15 @@ coral_country_summary <- coral_grid_analysis %>%
 
 # Bahamas seagrass CIs
 c(
-  coral_country_summary$seagrass[coral_country_summary$UNION == "Bahamas"], #16000.92
-  16000.92 - (16000.92 * mean(ben_region_stats_full$SG_c_05)),
-  16000.92 + (16000.92 * mean(ben_region_stats_full$SG_o_05))
+  coral_country_summary$seagrass[coral_country_summary$UNION == "Bahamas"], #26371.01
+  26371.01 - (26371.01 * mean(ben_region_stats_full$SG_c_05)),
+  26371.01 + (26371.01 * mean(ben_region_stats_full$SG_o_05))
 )
 
 # countries
 coral_country_summary[coral_country_summary$UNION == "Micronesia",]
 # top n %
-sum(arrange(coral_country_summary, desc(geo_sum))$wcmc_sum[1:15]) / 
+sum(arrange(coral_country_summary, desc(geo_sum))$wcmc_sum[1:20]) / 
   sum(arrange(coral_country_summary, desc(geo_sum))$wcmc_sum)
 # amount reef compared to ocean area (%)
 sum(coral_country_summary$geo_sum) / (361900000) * 100
@@ -213,28 +218,31 @@ top_protectors = arrange(coral_country_summary, desc(perc_prot), desc(geo_sum))
 
 # Table 1
 table1_countries <- arrange(coral_country_summary, desc(coralhab_sum))$UNION[1:20]
-table1_regions <- c('indo','phil','gbrt','nth_cari',
-                    'pns','swp','rsga','nth_cari','andm','sea',
-                    'swp','eastern_micronesia','pns','west_africa','south_asia',
-                    'west_africa','west_africa','rsga','central_south_pacific','eastern_micronesia')
+table1_regions <- c('indo','gbrt','phil',
+                    'nth_cari', 'pns','swp',
+                    'rsga','swp','south_asia',
+                    'pns', 'eastern_micronesia','eaf',
+                    'nth_cari','cio','nth_cari',
+                    'rsga','eaf','south_asia',
+                    'central_south_pacific','eaf')
 
 coralhab_ci("Indonesia", "indo", coral_country_summary, ben_region_stats_full)
 table1_cis <- bind_rows(map2(table1_countries, table1_regions, coralhab_ci, coral_country_summary, ben_region_stats_full))
 
 country_area_table1 <- coral_country_summary %>%
   filter(UNION %in% table1_countries) %>%
-  select(UNION, geo_sum, coralhab_sum, perc_prot) %>%
-  mutate(perc_prot = perc_prot * 100) %>%
+  select(UNION, extent_sum, geo_sum, coralhab_sum) %>%
   mutate(across(where(is.numeric), round)) %>%
   arrange(desc(coralhab_sum)) %>%
   left_join(table1_cis, by = c("UNION" = "country"))
+write.csv(country_area_table1, file = "table1.csv", row.names = F)
 
 # extended data table 1
 country_area_edtable <- coral_country_summary %>%
-  select(UNION, geo_sum, coralhab_sum, wcmc_sum, mean_dist, perc_prot) %>%
+  select(UNION, extent_sum, geo_sum, coralhab_sum, wcmc_sum, mean_dist, perc_prot) %>%
   mutate(across(c(geo_sum, coralhab_sum, wcmc_sum), round)) %>%
   arrange(desc(coralhab_sum))
-  
+write.csv(country_area_edtable, file = "supptable1.csv", row.names = F)  
 
 
 ### plots ###
@@ -259,7 +267,7 @@ ggplot(coral_longitude_plot, aes(x = longitude, y = reef)) +
 
 
 ## plot ordered by WCMC
-focus_countries <- arrange(coral_country_summary, desc(coralhab_sum))$UNION[1:20]
+focus_countries <- arrange(coral_country_summary, desc(wcmc_sum))$UNION[1:200]
 
 country_area_plotdat <- coral_country_summary %>%
   filter(UNION %in% focus_countries) %>%
@@ -378,6 +386,47 @@ benthic_summary %>%
   coord_polar("y", start = 0) +
   theme_void()
 
+## ternary plots
 
+ternary_countries <- arrange(coral_country_summary, desc(coralhab_sum))$UNION[1:20]
 
+ternary_data <- coral_grid_analysis %>%
+  filter(UNION %in% ternary_countries) %>%
+  mutate(rubble = ben_12,
+         coral_habitat = ben_13 + ben_15,
+         sand = ben_11,
+         reef_area = geo_sum,
+         label = UNION) %>%
+  select(rubble,coral_habitat,sand,reef_area,label) %>%
+  group_by(label) %>%
+  summarise(rubble = sum_na(rubble), coral_habitat = sum_na(coral_habitat), sand = sum_na(sand), reef_area = sum_na(reef_area)/1000000)
+ggtern(data = ternary_data, aes(x = rubble, y = coral_habitat, z = sand)) +
+  theme_rgbw() +
+  geom_point(aes(size = reef_area)) +
+  scale_size(name = "") +
+  labs(xarrow = "Rubble", x = "",
+       yarrow = "Coral/Algae + Rock", y = "",
+       zarrow = "Sand", z = "") +
+  #scale_T_continuous() + scale_R_continuous() + scale_R_continuous() +
+  geom_text(aes(label = label), hjust=0,vjust=0, size = 2, check_overlap = F)
 
+#ternary_country = "Australia"
+ternary_data_grids <- coral_grid_analysis %>%
+  filter(UNION %in% ternary_countries) %>%
+  mutate(x = ben_12,
+         y = ben_13 + ben_15,
+         z = ben_11,
+         reef_area = geo_sum,
+         label = UNION) %>%
+  select(x,y,z,reef_area,label)
+ggtern(data = ternary_data_grids, aes(x = x, y = y, z = z)) +
+  theme_rgbw() +
+  geom_point(alpha = 0.5, stroke = 0) +
+  labs(xarrow = "Rubble", x = "",
+       yarrow = "Coral/Algae + Rock", y = "",
+       zarrow = "Sand", z = "") +
+  facet_wrap(~label, ncol = 4)
+  
+  
+  
+  

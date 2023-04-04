@@ -110,3 +110,9 @@ coralhab_ci <- function(country, region, country_totals, errors) {
              lower = round(coralhab - (coralhab * mean_c)),
              upper = round(coralhab + (coralhab * mean_o)))
 }
+
+shannon_entropy <- function(areas) {
+  probs <- areas / sum(areas) # normalize the areas to probabilities
+  entropy <- -sum(probs * log2(probs))
+  return(entropy)
+}
