@@ -108,6 +108,14 @@ class_totals <- coral_grid_analysis %>%
          ben_perc = area/.$area[which(.$class == "ben_sum")])
 
 
+# global seagrass
+c(
+  class_totals$area[class_totals$class=="ben_14"], #67236.4
+  67236.4 - (67236.4 * mean(ben_region_stats_full$SG_c_05)),
+  67236.4 + (67236.4 * mean(ben_region_stats_full$SG_o_05))
+)
+
+
 ### figure out ref surface area based on generalised multipliers
 # geo multipliers from Roelfsema et al 2021
 geo_mults = data.frame(class = c(11,12,13,14,15,16,21,22,23,24,25),
@@ -267,19 +275,20 @@ ggplot(coral_longitude_plot, aes(x = longitude, y = reef)) +
 
 
 ## plot ordered by WCMC
-focus_countries <- arrange(coral_country_summary, desc(wcmc_sum))$UNION[1:200]
+focus_countries <- arrange(coral_country_summary, desc(coralhab_sum))$UNION[1:200]
 
 country_area_plotdat <- coral_country_summary %>%
   filter(UNION %in% focus_countries) %>%
+  #filter(!UNION %in% c("Bahamas", "Cuba")) %>%
   select(-mean_dist, -seagrass) %>%
-  select(-ben_sum, -coralalg_sum) %>%
+  select(-ben_sum, -coralalg_sum, -realestate_sum) %>%
   #arrange(desc(wcmc_sum)) %>%
   pivot_longer(geo_sum:wcmc_sum)
 
 country_area_plotdat$UNION <- factor(country_area_plotdat$UNION, 
                                      levels = focus_countries) # get in order for x axis
 country_area_plotdat$name <- factor(country_area_plotdat$name, 
-                                    levels = c("wcmc_sum","geo_sum","realestate_sum","coralhab_sum")) # get in order for plot areas
+                                    levels = c("wcmc_sum","geo_sum","coralhab_sum")) # get in order for plot areas
 country_area_plotdat$value <- country_area_plotdat$value # convert to km2
 
 ggplot(data = country_area_plotdat, aes(x = UNION)) +
@@ -288,11 +297,11 @@ ggplot(data = country_area_plotdat, aes(x = UNION)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
   theme(text = element_text(size=20)) +
-  ggtitle("Shallow coral reef area estimates - ordered by WCMC estimate") +
-  xlab("Juristiction") + ylab("Shallow coral reef area (km2)") +
+  ggtitle("Coral reef area estimates - ordered by WCMCv4 estimate") +
+  xlab("Jurisdiction") + ylab("Shallow coral reef area (km2)") +
   labs(fill = "Area (km^2)") +
-  scale_fill_manual(labels = c("UNEP WCMC spatial layer", "Shallow coral reef", "Reef flat/slope", "Shallow coral habitat"),
-                    values = c("gray", "orange", "red", "blue")) + 
+  scale_fill_manual(labels = c("WCMCv4 spatial layer", "Shallow coral reef", "Coral habitat"),
+                    values = c("gray", "orange", "blue")) + 
   theme(legend.position = c(0.8, 0.8))
 
 
@@ -338,8 +347,8 @@ ggplot(data = country_dist, aes(x = wcmc_sum, y = geo_sum, label = country_label
   theme(text = element_text(size=16)) +
   geom_text(size = 3, hjust=-0.3, vjust=-0.1) +
   scale_y_log10() + scale_x_log10() +
-  ylab("Shallow coral reef area (log10 km2)") + xlab("UNEP WCMC spatial layer (log10 km2)") +
-  ggtitle("Coral reef area mapped vs. existing UNEP WCMC area")
+  ylab("Shallow coral reef area (log10 km2)") + xlab("WCMCv4 spatial layer (log10 km2)") +
+  ggtitle("Shallow coral reef area mapped vs. existing WCMCv4 area")
 
 
 ## plot showing remoteness, area, threat
@@ -388,29 +397,31 @@ benthic_summary %>%
 
 ## ternary plots
 
-ternary_countries <- arrange(coral_country_summary, desc(coralhab_sum))$UNION[1:20]
+ternary_countries <- c(arrange(coral_country_summary, desc(coralhab_sum))$UNION[1:20], "Brazil", "Sri Lanka", "Mayotte")
 
 ternary_data <- coral_grid_analysis %>%
   filter(UNION %in% ternary_countries) %>%
   mutate(rubble = ben_12,
+         seagrass = ben_14,
          coral_habitat = ben_13 + ben_15,
          sand = ben_11,
          reef_area = geo_sum,
          label = UNION) %>%
-  select(rubble,coral_habitat,sand,reef_area,label) %>%
+  select(rubble,seagrass,coral_habitat,sand,reef_area,label) %>%
   group_by(label) %>%
-  summarise(rubble = sum_na(rubble), coral_habitat = sum_na(coral_habitat), sand = sum_na(sand), reef_area = sum_na(reef_area)/1000000)
+  summarise(rubble = sum_na(rubble), seagrass = sum_na(seagrass), coral_habitat = sum_na(coral_habitat), sand = sum_na(sand), reef_area = sum_na(reef_area)/1000000)
 ggtern(data = ternary_data, aes(x = rubble, y = coral_habitat, z = sand)) +
   theme_rgbw() +
   geom_point(aes(size = reef_area)) +
+  theme_showgrid_minor() +
   scale_size(name = "") +
-  labs(xarrow = "Rubble", x = "",
-       yarrow = "Coral/Algae + Rock", y = "",
-       zarrow = "Sand", z = "") +
+  labs(xarrow = "", x = "",
+       yarrow = "", y = "",
+       zarrow = "", z = "") +
   #scale_T_continuous() + scale_R_continuous() + scale_R_continuous() +
   geom_text(aes(label = label), hjust=0,vjust=0, size = 2, check_overlap = F)
 
-#ternary_country = "Australia"
+Mayotte#ternary_country = "Australia"
 ternary_data_grids <- coral_grid_analysis %>%
   filter(UNION %in% ternary_countries) %>%
   mutate(x = ben_12,
