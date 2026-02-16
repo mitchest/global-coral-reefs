@@ -1,6 +1,6 @@
 # global-coral-reefs
 Code and analysis for reproducing the data and statistics from:
-Lyons et al. (2023). New global area estimates for coral reefs from high-resolution mapping. _Cell Reports Sustainability_
+Lyons, M. B. et al. (2024). New global area estimates for coral reefs from high-resolution mapping. _Cell Reports Sustainability_, 1(2).
 
 ## Note
 - The `global_5m.dbf` file is compressed, so uncompress it, and then replace the original `.dbf` to use it
